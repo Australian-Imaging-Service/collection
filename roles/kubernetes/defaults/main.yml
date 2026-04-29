@@ -1,0 +1,22 @@
+---
+# defaults file for kubernetes
+kubernetes_type: canonical
+kubernetes_cni_type: calico
+kubernetes_pod_cidr: ""
+kubernetes_service_cidr: ""
+kubernetes_sans: []
+# - custom.kubernetes
+
+kubernetes_control_plane_taints: []
+# - node-role.kubernetes.io/control-plane:NoSchedule
+
+# Gateway API
+kubernetes_gateway_enabled: true
+
+# Load Balancer
+kubernetes_lb_enabled: false
+kubernetes_lb_cidrs: []
+kubernetes_lb_bgp_enabled: false
+
+# https://documentation.ubuntu.com/canonical-kubernetes/latest/snap/howto/install/dev-env/
+kubernetes_environment: production

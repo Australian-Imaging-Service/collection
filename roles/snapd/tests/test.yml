@@ -1,0 +1,6 @@
+---
+- name: Test snapd
+  hosts: localhost
+  remote_user: root
+  roles:
+    - snapd

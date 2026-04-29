@@ -1,0 +1,6 @@
+---
+- name: Test kubernetes role
+  hosts: localhost
+  remote_user: root
+  roles:
+    - kubernetes

@@ -1,0 +1,24 @@
+---
+# Ref. https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_reuse_roles.html#role-argument-validation
+argument_specs:
+  main:
+    short_description: Main entrypoint for the kubernetes role
+    description: ""
+    author:
+      - Dean Taylor
+    options:
+      kubernetes_environment:
+        type: "str"
+        required: false
+        default: production
+        choices:
+          - development
+          - edge
+          - production
+      kubernetes_type:
+        type: "str"
+        required: false
+        default: canonical
+        choices:
+          - canonical
+          - microk8s

@@ -1,0 +1,13 @@
+---
+# tasks file for snapd
+- name: Update package cache if required
+  when:
+    - ansible_facts['os_family'] == "Debian"
+  ansible.builtin.apt:
+    cache_valid_time: 86400
+    update_cache: true
+
+- name: Install
+  ansible.builtin.package:
+    name: snapd
+    state: present

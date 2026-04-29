@@ -1,0 +1,15 @@
+- name: Kubernetes edge
+  hosts: "{{ target | default('all') }}"
+  become: true
+  vars: {}
+
+  pre_tasks: []
+
+  roles:
+    - role: ais.core.kubernetes
+
+  tasks: []
+
+  post_tasks: []
+
+  handlers: []

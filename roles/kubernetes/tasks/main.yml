@@ -1,0 +1,43 @@
+---
+# tasks file for kubernetes
+- name: Set facts
+  ansible.builtin.set_fact:
+    kubernetes_host_dualstack: >-
+      {{ (ansible_facts['default_ipv6'] | length > 0) and
+         (ansible_facts['default_ipv4'] | length > 0) }}
+    kubernetes_ipv6only: "{{ not kubernetes_pod_cidr is ansible.utils.ipv4 }}"
+    kubernetes_cidr_default: "\
+      fd{{ '%02x' % ((127 | random) | int) }}\
+      :{{ '%x' % ((32767 | random) | int) }}\
+      :{{ '%x' % ((32767 | random) | int) }}\
+      :{{ '%x' % ((32767 | random) | int) }}\
+      ::/64"
+# - ansible.builtin.debug: {var: kubernetes_cidr_default}
+
+- name: Set kubernetes cidr defaults
+  ansible.builtin.set_fact:
+    kubernetes_pod_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 0) }}"
+    kubernetes_service_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 1) }}"
+# - ansible.builtin.debug: {var: kubernetes_pod_cidr_default}
+# - ansible.builtin.debug: {var: kubernetes_service_cidr_default}
+
+- name: Create ansible local facts path
+  ansible.builtin.file:
+    path: /etc/ansible/facts.d
+    state: directory
+
+- name: Update package cache if required
+  when:
+    - ansible_facts["os_family"] == "Debian"
+  ansible.builtin.apt:
+    cache_valid_time: 86400
+    update_cache: true
+
+- name: Install snapd if required
+  when:
+    - kubernetes_type in ["canonical","microk8s"]
+  ansible.builtin.include_role:
+    name: ais.core.snapd
+
+- name: Kubernetes type
+  ansible.builtin.include_tasks: "{{ kubernetes_type }}/main.yml"

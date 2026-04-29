@@ -1,0 +1,34 @@
+---
+# Ref. https://documentation.ubuntu.com/canonical-kubernetes/main/snap/reference/config-files/bootstrap-config/
+cluster-config:
+  network:
+    enabled: true
+  dns:
+    enabled: true
+    cluster-domain: cluster.local
+  ingress:
+    enabled: true
+  load-balancer:
+    enabled: {{ kubernetes_lb_enabled | to_json }}
+    cidrs:
+      {{ kubernetes_lb_cidrs | to_nice_yaml(indent=2) | indent(6) }}
+    l2-mode: {{ (not kubernetes_lb_bgp_enabled) | to_json }}
+  local-storage:
+    enabled: false
+    local-path: /var/snap/k8s/common/rawfile-storage
+    default: true
+  gateway:
+    enabled: {{ kubernetes_gateway_enabled | to_json }}
+  metrics-server:
+    enabled: false
+control-plane-taints:
+  {{ kubernetes_control_plane_taints | to_nice_yaml(indent=2) | indent(2) }}
+pod-cidr: {{ kubernetes_pod_cidr | default(kubernetes_pod_cidr_default,true) }}
+service-cidr: {{ kubernetes_service_cidr | default(kubernetes_service_cidr_default, true) }}
+disable-rbac: false
+datastore-type: etcd
+extra-sans:
+  {{ kubernetes_sans | to_nice_yaml(indent=2) | indent(2) }}
+{% if kubernetes_environment == 'development' %}
+containerd-base-dir: /snap/k8s/current/bin/containerd
+{% endif %}

@@ -1,0 +1,61 @@
+- name: Create settings path
+  ansible.builtin.file:
+    path: /etc/ansible/etc
+    state: directory
+
+- name: Install canonical k8s snap
+  community.general.snap:
+    name: k8s
+    classic: true
+
+- name: Get k8s status
+  ansible.builtin.command:
+    cmd: k8s status --output-format=json
+  changed_when: false
+  failed_when: false
+  register: kubernetes_status_reg
+
+- name: Debug kubernetes status
+  ansible.builtin.debug:
+    var: kubernetes_status_reg
+    verbosity: 1
+
+- name: Bootstrap canonical k8s
+  when:
+    - kubernetes_status_reg.rc != 0
+  block:
+    - name: Set kubernetes address
+      ansible.builtin.set_fact:
+        kubernetes_address_default: >-
+          {%- if kubernetes_host_dualstack and kubernetes_ipv6only -%}
+          {{ '::1' if kubernetes_environment == 'development' else ansible_facts['default_ipv6']['address'] }}
+          {%- else %}
+          {{ '127.0.0.1' if kubernetes_environment == 'development' else ansible_facts['default_ipv4']['address'] }}
+          {%- endif %}
+    # - ansible.builtin.debug: {var: kubernetes_address_default}
+
+    - name: Canonical k8s bootstrap file
+      ansible.builtin.template:
+        dest: /etc/ansible/etc/canonical.bootstrap.yaml
+        lstrip_blocks: true
+        mode: "644"
+        src: canonical/bootstrap.yaml.j2
+
+    - name: Bootstrap canonical k8s node
+      ansible.builtin.command:
+        cmd: >
+          k8s bootstrap --timeout=10m
+          --file=/etc/ansible/etc/canonical.bootstrap.yaml
+          --address={{ kubernetes_address_default }}
+      changed_when: true
+      register: kubernetes_boostrap_reg
+
+    - name: Debug bootstrap
+      ansible.builtin.debug:
+        var: kubernetes_boostrap_reg
+        verbosity: 1
+
+    - name: Wait and get status
+      ansible.builtin.command:
+        cmd: k8s status --output-format=json --wait-ready
+      changed_when: false

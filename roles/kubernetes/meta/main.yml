@@ -1,0 +1,16 @@
+galaxy_info:
+  author: Dean Taylor
+  description: Kubernetes
+  company: The University of Sydney
+
+  license: Apache-2.0
+
+  min_ansible_version: "2.1"
+
+  galaxy_tags:
+    - kubernetes
+    - microk8s
+    - canonical
+
+dependencies:
+  - ais.core.snapd
