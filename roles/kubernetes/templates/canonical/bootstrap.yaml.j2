@@ -2,25 +2,25 @@
 # Ref. https://documentation.ubuntu.com/canonical-kubernetes/main/snap/reference/config-files/bootstrap-config/
 cluster-config:
   network:
-    enabled: true
+    enabled: {{ true if (kubernetes_cni_type | default('cilium', true) == 'cilium' else false }}
   dns:
     enabled: true
     cluster-domain: cluster.local
   ingress:
-    enabled: true
+    enabled: {{ kubernetes_ingress_enabled | to_json }}
   load-balancer:
-    enabled: {{ kubernetes_lb_enabled | to_json }}
+    enabled: false
     cidrs:
       {{ kubernetes_lb_cidrs | to_nice_yaml(indent=2) | indent(6) }}
     l2-mode: {{ (not kubernetes_lb_bgp_enabled) | to_json }}
   local-storage:
-    enabled: false
-    local-path: /var/snap/k8s/common/rawfile-storage
-    default: true
+    enabled: {{ kubernetes_local_storage_enabled | to_json }}
+    local-path: {{ kubernetes_local_storage_path | default('/var/snap/k8s/common/rawfile-storage', true) }}
+    default: false
   gateway:
     enabled: {{ kubernetes_gateway_enabled | to_json }}
   metrics-server:
-    enabled: false
+    enabled: {{ kubernetes_metrics_server_enabled | to_json }}
 control-plane-taints:
   {{ kubernetes_control_plane_taints | to_nice_yaml(indent=2) | indent(2) }}
 pod-cidr: {{ kubernetes_pod_cidr | default(kubernetes_pod_cidr_default,true) }}
@@ -30,5 +30,5 @@ datastore-type: etcd
 extra-sans:
   {{ kubernetes_sans | to_nice_yaml(indent=2) | indent(2) }}
 {% if kubernetes_environment == 'development' %}
-containerd-base-dir: /snap/k8s/current/bin/containerd
+containerd-base-dir: /ck8s
 {% endif %}

@@ -41,3 +41,8 @@
 
 - name: Kubernetes type
   ansible.builtin.include_tasks: "{{ kubernetes_type }}/main.yml"
+
+- name: Configure load balancer
+  when:
+    - kubernetes_lb_cidrs | length > 0
+  ansible.builtin.include_tasks: "{{ kubernetes_cni_type | default('cilium', true) }}/load_balancer.yml"

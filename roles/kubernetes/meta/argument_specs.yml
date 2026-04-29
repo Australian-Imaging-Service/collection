@@ -7,6 +7,13 @@ argument_specs:
     author:
       - Dean Taylor
     options:
+      kubernetes_cni_type:
+        type: "str"
+        required: false
+        choices:
+          - calico
+          - cilium
+          - ""
       kubernetes_environment:
         type: "str"
         required: false

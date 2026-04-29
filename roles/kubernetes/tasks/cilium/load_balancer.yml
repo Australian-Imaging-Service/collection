@@ -1,0 +1,11 @@
+---
+# tasks/cilium/load-balancer.yml
+- name: Set load balancer facts
+  ansible.builtin.set_fact:
+    kubernetes_lb_ippool_blocks: "{{ kubernetes_lb_cidrs | ansible.builtin.map('community.general.dict_kv', 'cidr') | list }}"
+
+- name: Cilium load balancer pool
+  ansible.builtin.command:
+    cmd: >
+      k8s kubectl apply -f -
+    stdin: "{{ lookup('ansible.builtin.template', 'cilium/lb-ippool.yaml.j2') }}"
