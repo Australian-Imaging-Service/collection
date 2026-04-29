@@ -4,6 +4,7 @@
   ansible.builtin.file:
     path: /etc/ansible/etc
     state: directory
+    mode: "755"
 
 - name: Install canonical k8s snap
   community.general.snap:
@@ -26,10 +27,10 @@
   when:
     - kubernetes_status_reg.rc != 0
   block:
-    - name: Set kubernetes address
+    - name: Set kubernetes address  # noqa: jinja[spacing]
       ansible.builtin.set_fact:
-        kubernetes_address_default: >-
-          {%- if kubernetes_host_dualstack and kubernetes_ipv6only -%}
+        kubernetes_address_default: >-  # noqa: jinja[spacing]
+          {%- if kubernetes_host_dualstack and kubernetes_ipv6only %}
           {{ '::1' if kubernetes_environment == 'development' else ansible_facts['default_ipv6']['address'] }}
           {%- else %}
           {{ '127.0.0.1' if kubernetes_environment == 'development' else ansible_facts['default_ipv4']['address'] }}
@@ -74,9 +75,9 @@
   changed_when: false
   register: kubernetes_kubeconfig_reg
 
-- name: Set kubernetes status and kubeconfig
+- name: Set kubernetes status and kubeconfig  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
-    kubernetes_status: >-
+    kubernetes_status: >-  # noqa: jinja[spacing]
       {%- if kubernetes_bootstrap_status_reg.skipped is defined -%}
       {{ kubernetes_status_reg.stdout | from_json }}
       {%- else %}
@@ -94,3 +95,5 @@
     cmd: >
       k8s {{ 'disable' if item.value.enabled else 'enable' }} {{ item.key }}
   loop: "{{ kubernetes_status | dict2items | selectattr('value.enabled', 'defined') | list }}"
+  changed_when: kubernetes_feature_reg.rc == 0
+  register: kubernetes_feature_reg

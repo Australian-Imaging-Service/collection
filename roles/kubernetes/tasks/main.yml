@@ -23,6 +23,7 @@
 
 - name: Create ansible local facts path
   ansible.builtin.file:
+    mode: "755"
     path: /etc/ansible/facts.d
     state: directory
 
