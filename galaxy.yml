@@ -16,7 +16,8 @@ tags:
   - research
 
 dependencies:
-  kubernetes.core: ">=5.2.0"
+  ansible.utils: ">=6.0.2"
+  community.general: ">=10.7.0"
 
 repository: https://github.com/Australian-Imaging-Service/collection
 documentation: https://github.com/Australian-Imaging-Service/collection

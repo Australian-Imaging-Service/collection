@@ -2,30 +2,35 @@
 # tasks file for kubernetes
 - name: Set facts
   ansible.builtin.set_fact:
+    kubernetes_cni_type_default: "{{ 'cilium' if kubernetes_type == 'canonical' else 'calico' }}"
+    kubernetes_helm: "{{ 'k8s helm' if kubernetes_type == 'canonical' else 'microk8s helm' }}"
     kubernetes_host_dualstack: >-
-      {{ (ansible_facts['default_ipv6'] | length > 0) and
-         (ansible_facts['default_ipv4'] | length > 0) }}
-    kubernetes_ipv6only: "{{ not kubernetes_pod_cidr is ansible.utils.ipv4 }}"
+      {{
+        (ansible_facts['default_ipv6'] | length > 0) and
+        (ansible_facts['default_ipv4'] | length > 0)
+      }}
     kubernetes_cidr_default: "\
       fd{{ '%02x' % ((127 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       ::/64"
-# - ansible.builtin.debug: {var: kubernetes_cidr_default}
+    kubernetes_ipv6only: "{{ not kubernetes_pod_cidr is ansible.utils.ipv4 }}"
+    kubernetes_kubectl: "{{ 'k8s kubectl' if kubernetes_type == 'canonical' else 'microk8s kubectl' }}"
 
 - name: Set kubernetes cidr defaults
   ansible.builtin.set_fact:
     kubernetes_pod_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 0) }}"
     kubernetes_service_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 1) }}"
-# - ansible.builtin.debug: {var: kubernetes_pod_cidr_default}
-# - ansible.builtin.debug: {var: kubernetes_service_cidr_default}
 
-- name: Create ansible local facts path
+- name: Create ansible path
   ansible.builtin.file:
     mode: "755"
-    path: /etc/ansible/facts.d
+    path: "{{ item }}"
     state: directory
+  loop:
+    - /etc/ansible/facts.d
+    - /etc/ansible/etc
 
 - name: Update package cache if required
   when:
@@ -46,4 +51,4 @@
 - name: Configure load balancer
   when:
     - kubernetes_lb_cidrs | length > 0
-  ansible.builtin.include_tasks: "{{ kubernetes_cni_type | default('cilium', true) }}/load_balancer.yml"
+  ansible.builtin.include_tasks: "{{ kubernetes_cni_type | default(kubernetes_cni_type_default, true) }}/load_balancer.yml"
