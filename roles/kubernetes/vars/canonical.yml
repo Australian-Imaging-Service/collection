@@ -1,0 +1,7 @@
+kubernetes_cni_type_default: cilium
+kubernetes_coredns_cm_name: ck-dns-coredns
+kubernetes_containerd_sock_default: /run/containerd/containerd.sock
+# Containerd control binary path
+kubernetes_ctr_bin: /snap/k8s/current/bin/ctr
+kubernetes_helm: k8s helm
+kubernetes_kubectl: k8s kubectl

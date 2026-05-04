@@ -1,0 +1,7 @@
+kubernetes_cni_type_default: calico
+# kubernetes_coredns_cm_name: ck-dns-coredns
+kubernetes_containerd_sock_default: /var/snap/microk8s/common/run/containerd.sock
+# Containerd control binary wrapper
+kubernetes_ctr_bin: microk8s ctr
+kubernetes_helm: microk8s helm
+kubernetes_kubectl: microk8s kubectl

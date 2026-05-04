@@ -1,0 +1,39 @@
+- name: Create ansible directory
+  ansible.builtin.file:
+    mode: "755"
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /etc/ansible/facts.d
+    - /etc/ansible/etc
+
+- name: Get ansible collection path
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection list --format=json kubernetes.core
+  become: false
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+  register: kubernetes_collection_path_reg
+
+- name: Copy kubernetes ansible collection requirements.txt
+  ansible.builtin.copy:
+    dest: /etc/ansible/requirements.txt
+    mode: "644"
+    src: "{{ (kubernetes_collection_path_reg.stdout | from_json).keys() | first }}/kubernetes/core/requirements.txt"
+
+- name: Ansible virtual environment
+  ansible.builtin.pip:
+    requirements: /etc/ansible/requirements.txt
+    virtualenv: /etc/ansible/venv
+    virtualenv_command: python3 -m venv
+
+- name: Set Ansible python interpreter
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: /etc/ansible/venv/bin/python
+
+- name: Create fact
+  ansible.builtin.copy:
+    dest: /etc/ansible/facts.d/kubernetes.fact
+    mode: "0755"
+    src: kubernetes.fact

@@ -1,5 +1,23 @@
 ---
 # tasks/canonical/main.yml
+- name: Set kubernetes address  # noqa: jinja[spacing]
+  ansible.builtin.set_fact:
+    kubernetes_address_default: >-  # noqa: jinja[spacing]
+      {%- if kubernetes_host_dualstack and kubernetes_ipv6only -%}
+      {{ '::1' if kubernetes_environment == 'development' else ansible_facts['default_ipv6']['address'] }}
+      {%- else -%}
+      {{ '127.0.0.1' if kubernetes_environment == 'development' else ansible_facts['default_ipv4']['address'] }}
+      {%- endif %}
+
+- name: Set kubernetes server address  # noqa: jinja[spacing]
+  ansible.builtin.set_fact:
+    kubernetes_server_address: >-  # noqa: jinja[spacing]
+      {%- if kubernetes_address_default is ansible.utils.ipv4 -%}
+      https://{{ kubernetes_address_default }}:6443
+      {%- else -%}
+      https://[{{ kubernetes_address_default }}]:6443
+      {%- endif %}
+
 - name: Install canonical k8s snap
   community.general.snap:
     name: k8s
@@ -21,16 +39,6 @@
   when:
     - kubernetes_status_reg.rc != 0
   block:
-    - name: Set kubernetes address  # noqa: jinja[spacing]
-      ansible.builtin.set_fact:
-        kubernetes_address_default: >-  # noqa: jinja[spacing]
-          {%- if kubernetes_host_dualstack and kubernetes_ipv6only %}
-          {{ '::1' if kubernetes_environment == 'development' else ansible_facts['default_ipv6']['address'] }}
-          {%- else %}
-          {{ '127.0.0.1' if kubernetes_environment == 'development' else ansible_facts['default_ipv4']['address'] }}
-          {%- endif %}
-    # - ansible.builtin.debug: {var: kubernetes_address_default}
-
     - name: Canonical k8s bootstrap file
       ansible.builtin.template:
         dest: /etc/ansible/etc/canonical.bootstrap.yaml
@@ -65,7 +73,7 @@
 
 - name: Get kubeconfig
   ansible.builtin.command:
-    cmd: k8s config
+    cmd: k8s config --server={{ kubernetes_server_address }}
   changed_when: false
   register: kubernetes_kubeconfig_reg
 
@@ -74,7 +82,7 @@
     kubernetes_status: >-  # noqa: jinja[spacing]
       {%- if kubernetes_bootstrap_status_reg.skipped is defined -%}
       {{ kubernetes_status_reg.stdout | from_json }}
-      {%- else %}
+      {%- else -%}
       {{ kubernetes_bootstrap_status_reg.stdout | from_json }}
       {%- endif %}
     kubernetes_kubeconfig: "{{ kubernetes_kubeconfig_reg.stdout | from_yaml }}"

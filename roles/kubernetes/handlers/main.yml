@@ -1,2 +1,7 @@
 ---
 # handlers file for kubernetes
+- name: Rollout coredns
+  ansible.builtin.command:
+    cmd: >-
+      {{ kubernetes_kubectl }} -n kube-system rollout restart deployment coredns
+  changed_when: false

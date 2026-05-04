@@ -5,9 +5,14 @@
     kubernetes_lb_ippool_blocks: "{{ kubernetes_lb_cidrs | map('community.general.dict_kv', 'cidr') | list }}"
 
 - name: Cilium load balancer pool
-  ansible.builtin.command:
-    cmd: >
-      {{ kubernetes_kubectl }} apply -f -
-    stdin: "{{ lookup('ansible.builtin.template', 'cilium/lb-ippool.yaml.j2') }}"
-  changed_when: kubernetes_apply_lb_pool_reg.rc == 0
-  register: kubernetes_apply_lb_pool_reg
+  kubernetes.core.k8s:
+    apply: true
+    kubeconfig: "{{ kubernetes_kubeconfig }}"
+    state: present
+    template: cilium/lb-ippool.yaml.j2
+#  ansible.builtin.command:
+#    cmd: >
+#      {{ kubernetes_kubectl }} apply -f -
+#    stdin: "{{ lookup('ansible.builtin.template', 'cilium/lb-ippool.yaml.j2') }}"
+#  changed_when: kubernetes_apply_lb_pool_reg.rc == 0
+#  register: kubernetes_apply_lb_pool_reg

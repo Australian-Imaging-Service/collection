@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tayga-config
+  namespace: kube-system
+data:
+  tayga.conf: |
+    tun-device nat64
+    ipv4-addr 100.64.0.1
+    prefix {{ kubernetes_dns64_prefix }}
+    dynamic-pool 100.64.0.0/10

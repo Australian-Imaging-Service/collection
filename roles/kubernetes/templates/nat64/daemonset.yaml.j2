@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: tayga
+  namespace: kube-system
+  annotations:
+    checksum/config: "{{ lookup('ansible.builtin.template', 'nat64/configmap.yaml.j2') | ansible.builtin.hash('sha256') }}"
+  labels:
+    app: tayga
+spec:
+  selector:
+    matchLabels:
+      name: tayga
+  template:
+    metadata:
+      labels:
+        name: tayga
+    spec:
+      tolerations:
+      - operator: "Exists"
+        effect: NoSchedule
+      hostNetwork: true
+      containers:
+      - name: tayga
+        image: tayga:0.1.0
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN"]
+          privileged: true
+        args: ["tayga","--config=/etc/tayga/tayga.conf","-d"]
+        imagePullPolicy: Never
+        resources:
+          limits:
+            memory: 50Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+        volumeMounts:
+        - mountPath: /etc/tayga
+          name: tayga-config
+          readOnly: true
+      volumes:
+      - name: tayga-config
+        configMap:
+          name: tayga-config

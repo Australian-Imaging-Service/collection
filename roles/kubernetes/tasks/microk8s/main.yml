@@ -1,6 +1,0 @@
----
-# tasks/microk8s/main.yml
-- name: Install microk8s snap
-  community.general.snap:
-    name: microk8s
-    classic: true

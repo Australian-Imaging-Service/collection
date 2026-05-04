@@ -7,6 +7,13 @@ kubernetes_service_cidr: ""
 kubernetes_sans: []
 # - custom.kubernetes
 
+kubernetes_dns_forwarders: []
+
+kubernetes_dns64_enabled: false
+kubernetes_dns64_prefix: 64:ff9b::/96
+
+kubernetes_nat64_enabled: false
+
 kubernetes_ingress_enabled: false
 kubernetes_metrics_server_enabled: false
 

@@ -1,36 +1,49 @@
 ---
 # tasks file for kubernetes
-- name: Set facts
+- name: Operating system variables
+  ansible.builtin.include_vars: "{{ lookup('ansible.builtin.first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ ansible_distribution }}.yml"
+        - "{{ ansible_os_family }}.yml"
+        - os_default.yml
+      paths:
+        - vars
+
+- name: Kubernetes type variables
+  ansible.builtin.include_vars: "{{ kubernetes_type }}.yml"
+
+- name: Set facts  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
-    kubernetes_cni_type_default: "{{ 'cilium' if kubernetes_type == 'canonical' else 'calico' }}"
-    kubernetes_helm: "{{ 'k8s helm' if kubernetes_type == 'canonical' else 'microk8s helm' }}"
-    kubernetes_host_dualstack: >-
-      {{
-        (ansible_facts['default_ipv6'] | length > 0) and
-        (ansible_facts['default_ipv4'] | length > 0)
-      }}
+    kubernetes_ctr: >-  # noqa: jinja[spacing]
+      {%- if kubernetes_type == "canonical" -%}
+      {{ kubernetes_ctr_bin }}
+      --address {{ kubernetes_containerd_sock_default }}
+      --namespace k8s.io
+      {%- elif kubernetes_type == "microk8s" -%}
+      {{ kubernetes_ctr_bin }}
+      {%- endif %}
     kubernetes_cidr_default: "\
       fd{{ '%02x' % ((127 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       ::/64"
+    kubernetes_host_dualstack: >-
+      {{
+        (ansible_facts['default_ipv6'] | length > 0) and
+        (ansible_facts['default_ipv4'] | length > 0)
+      }}
     kubernetes_ipv6only: "{{ not kubernetes_pod_cidr is ansible.utils.ipv4 }}"
-    kubernetes_kubectl: "{{ 'k8s kubectl' if kubernetes_type == 'canonical' else 'microk8s kubectl' }}"
 
 - name: Set kubernetes cidr defaults
   ansible.builtin.set_fact:
     kubernetes_pod_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 0) }}"
     kubernetes_service_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 1) }}"
 
-- name: Create ansible path
-  ansible.builtin.file:
-    mode: "755"
-    path: "{{ item }}"
-    state: directory
-  loop:
-    - /etc/ansible/facts.d
-    - /etc/ansible/etc
+- name: Configure ansible
+  ansible.builtin.include_tasks: config_ansible.yml
 
 - name: Update package cache if required
   when:
@@ -41,14 +54,60 @@
 
 - name: Install snapd if required
   when:
-    - kubernetes_type in ["canonical","microk8s"]
+    - kubernetes_type in ["canonical", "microk8s"]
   ansible.builtin.include_role:
     name: ais.core.snapd
 
-- name: Kubernetes type
+- name: Kubernetes type tasks
   ansible.builtin.include_tasks: "{{ kubernetes_type }}/main.yml"
 
-- name: Configure load balancer
+- name: Copy oci images to each cluster host
+  ansible.builtin.copy:
+    dest: /etc/ansible/kubernetes/images/
+    mode: "644"
+    src: images/
+  register: kubernetes_copy_images_reg
+
+- name: Kubernetes image side load  # noqa: no-handler
   when:
-    - kubernetes_lb_cidrs | length > 0
-  ansible.builtin.include_tasks: "{{ kubernetes_cni_type | default(kubernetes_cni_type_default, true) }}/load_balancer.yml"
+    - kubernetes_copy_images_reg.changed
+  block:
+    - name: Find all image files for side load
+      ansible.builtin.find:
+        paths: /etc/ansible/kubernetes/images
+        patterns: "*.tar"
+      register: kubernetes_image_files_reg
+
+    - name: Side load images
+      ansible.builtin.command:
+        cmd: "{{ kubernetes_ctr  }} images import {{ item.path }}"
+      changed_when: "{{ 'done' in kubernetes_ctr_images_import_reg.stdout }}"
+      register: kubernetes_ctr_images_import_reg
+      loop: "{{ kubernetes_image_files_reg.files }}"
+
+- name: Configure kubernetes cluster
+  run_once: true
+  block:
+    - name: Configure coredns dns64
+      when:
+        - kubernetes_dns64_enabled
+        - ansible_facts['default_ipv6'] | length > 0
+      ansible.builtin.include_tasks: coredns/main.yml
+
+    - name: Configure nat64
+      when:
+        - kubernetes_nat64_enabled
+        - kubernetes_host_dualstack
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubernetes_kubeconfig }}"
+        state: present
+        template: "{{ item }}"
+      loop:
+        - nat64/configmap.yaml.j2
+        - nat64/daemonset.yaml.j2
+
+    - name: Configure load balancer
+      when:
+        - kubernetes_lb_enabled
+        - kubernetes_lb_cidrs | length > 0
+      ansible.builtin.include_tasks: "{{ kubernetes_cni_type | default(kubernetes_cni_type_default, true) }}/load_balancer.yml"

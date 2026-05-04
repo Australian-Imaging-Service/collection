@@ -1,0 +1,46 @@
+# kubernetes/tasks/coredns/main.yml
+# https://coredns.io/plugins/dns64/
+- name: Get coredns config
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubernetes_kubeconfig }}"
+    kind: configmaps
+    name: "{{ kubernetes_coredns_cm_name }}"
+    namespace: kube-system
+  register: kubernetes_coredns_cm_reg
+
+- name: Debug coredns
+  ansible.builtin.debug:
+    var: kubernetes_coredns_cm_reg
+    verbosity: 1
+
+- name: Save coredns configmap
+  ansible.builtin.copy:
+    content: "{{ kubernetes_coredns_cm_reg.resources[0] | to_nice_yaml(default_style='|') }}"
+    dest: /etc/ansible/kubernetes/coredns.configmap.yaml
+    force: false
+    mode: "644"
+
+- name: Coredns nat64 patch
+  ansible.builtin.blockinfile:
+    block: |
+      {% filter indent(width=12, first=true) %}
+      dns64 {
+          translate_all
+          prefix {{ kubernetes_dns64_prefix }}
+          allow_ipv4
+      }
+      {% endfilter %}
+    insertafter: "^\\s+\\.:53\\s+{$"
+    marker: "            # {mark} ANSIBLE MANAGED BLOCK kubernetes dns64"
+    path: /etc/ansible/kubernetes/coredns.configmap.yaml
+    state: present
+  register: kubernetes_coredns_patch_reg
+
+- name: Apply coredns patched configmap  # noqa: no-handler
+  when:
+    - kubernetes_coredns_patch_reg.changed
+  kubernetes.core.k8s:  # noqa: no-handler
+    kubeconfig: "{{ kubernetes_kubeconfig }}"
+    apply: true
+    src: /etc/ansible/kubernetes/coredns.configmap.yaml
+  notify: Rollout coredns

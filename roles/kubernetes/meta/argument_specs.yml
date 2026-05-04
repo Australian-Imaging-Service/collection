@@ -28,4 +28,3 @@ argument_specs:
         default: canonical
         choices:
           - canonical
-          - microk8s
