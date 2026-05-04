@@ -1,23 +1,32 @@
 ---
 # defaults file for kubernetes
 kubernetes_type: canonical
+# override default Container Network Interface
 kubernetes_cni_type: ""
+# override generated Classless Inter-Domain Routing IP ranges
 kubernetes_pod_cidr: ""
 kubernetes_service_cidr: ""
+# extra x.509 certificate Subject Alternative Name (SAN)
 kubernetes_sans: []
 # - custom.kubernetes
+# - custom.ais.sydney.edu.au
 
+# override host bound DNS forwarder
 kubernetes_dns_forwarders: []
 
+# integrate cluster into IPv4 legacy networks
+# only required if not already incorporated into the local network
 kubernetes_dns64_enabled: false
 kubernetes_dns64_prefix: 64:ff9b::/96
-
+# configure each host to translate IPv6 to IPv4
+# alternative to NAT64 at the network boundry
 kubernetes_nat64_enabled: false
 
 kubernetes_ingress_enabled: false
 kubernetes_metrics_server_enabled: false
 
 kubernetes_local_storage_enabled: false
+# override Local Storage CSI path
 kubernetes_local_storage_path: ""
 
 kubernetes_control_plane_taints: []
