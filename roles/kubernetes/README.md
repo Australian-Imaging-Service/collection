@@ -47,14 +47,22 @@ Example Playbook
 
 Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+- hosts: servers
+  roles:
+    - role: ais.core.kubernetes
+      kubernetes_dns64_enabled: true
+      kubernetes_nat64_enabled: true
+      kubernetes_lb_enabled: true
+      kubernetes_lb_cidrs:
+        - fd26:453e:8b2c::/48
+        - 10.10.10.0/24
+```
 
 License
 -------
 
-BSD
+Apache-2.0
 
 Author Information
 ------------------
