@@ -1,5 +1,5 @@
-Role Name
-=========
+ais.core.kubernetes
+===================
 
 Kubernetes configuration and infrastructure integration.
 
@@ -9,7 +9,10 @@ Requirements
 The kubernetes role uses a number of collections including the official `kubernetes.core` collection.
 
 ```bash
-pipx runpip ansible install --upgrade -r "$(ansible-galaxy collection list kubernetes.core --format=json |jq -r 'keys[0]')/kubernetes/core/requirements.txt"
+pipx runpip ansible install --upgrade -r \
+  "$(ansible-galaxy collection list ansible.utils --format=json |jq -r 'keys[0]')/ansible/utils/requirements.txt"
+pipx runpip ansible install --upgrade -r \
+  "$(ansible-galaxy collection list kubernetes.core --format=json |jq -r 'keys[0]')/kubernetes/core/requirements.txt"
 ```
 
 Role Variables
