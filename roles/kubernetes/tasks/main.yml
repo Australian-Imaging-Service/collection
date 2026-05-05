@@ -80,7 +80,7 @@
 
     - name: Side load images
       ansible.builtin.command:
-        cmd: "{{ kubernetes_ctr  }} images import {{ item.path }}"
+        cmd: "{{ kubernetes_ctr }} images import {{ item.path }}"
       changed_when: "{{ 'done' in kubernetes_ctr_images_import_reg.stdout }}"
       register: kubernetes_ctr_images_import_reg
       loop: "{{ kubernetes_image_files_reg.files }}"

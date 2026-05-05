@@ -1,17 +1,41 @@
 Role Name
 =========
 
-A brief description of the role goes here.
+Kubernetes configuration and infrastructure integration.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+The kubernetes role uses a number of collections including the official `kubernetes.core` collection.
+
+```bash
+pipx runpip ansible install --upgrade -r "$(ansible-galaxy collection list kubernetes.core --format=json |jq -r 'keys[0]')/kubernetes/core/requirements.txt"
+```
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| kubernetes_type | canonical | Distribution type |
+| kubernetes_cni_type | "" | Override default Container Network Interface |
+| kubernetes_pod_cidr | "" | Override auto generated Pod CIDR address range |
+| kubernetes_service_cidr | "" | Override auto generated Service CIDR address range |
+| kubernetes_sans | [] | | Add extra x.509 certificate Subject Alternative Name (SAN) |
+| kubernetes_dns_forwarders | [] | Override DNS forwarders used by the host |
+| kubernetes_dns64_enabled | false | Enable the DNS64 coredns plugin |
+| kubernetes_dns64_prefix | 64:ff9b::/96 | Set a DNS64 and NAT64 prefix |
+| kubernetes_nat64_enabled | false | Enable NAT64 on the host |
+| kubernetes_ingress_enabled | false | Enable the Kuberentes Ingress controller |
+| kubernetes_metrics_server_enabled | false | Enable the Kubernetes metrics server |
+| kubernetes_local_storage_enabled | false | Enable a local storage CSI |
+| kubernetes_local_storage_path | "" | Override default local storage path |
+| kubernetes_control_plane_taints | [] | Add control plane taints |
+| kubernetes_gateway_enabled | true | Enable the Kubernetes Gateway API |
+| kubernetes_lb_enabled | false | Enable a software Load Balancer |
+| kubernetes_lb_cidrs | [] | Provide IP address CIDRs to allocate to the Load Balancer address pool |
+| kubernetes_lb_bgp_enabled | false | Configure the Load Balancer to utilise Border Gateway Protocol instead of OSI Layer 2 |
+| kubernetes_environment | production | Set default deployment settings to specific environment |
 
 Dependencies
 ------------
