@@ -51,8 +51,9 @@ if which ansible-lint &>/dev/null; then
 fi
 
 if which trufflehog &>/dev/null; then
+	export TRUFFLEHOG_PRE_COMMIT=1
 	echo; echo Scanning for secrets
-	trufflehog filesystem ./ || EXIT_CODE=$?
+	trufflehog git file://. || EXIT_CODE=$?
 fi
 
 exit $EXIT_CODE

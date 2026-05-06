@@ -1,0 +1,23 @@
+# collection/.github/workflows/trufflehog.yml
+# https://github.com/marketplace/actions/trufflehog-oss#octocat-trufflehog-github-action
+name: trufflehog
+on:
+  push:
+  pull-request:
+
+jobs:
+  test:
+    name: TruffleHog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Secret scanning
+        id: trufflehog
+        uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
+        with:
+          extra_args: --results=verified,unknown
