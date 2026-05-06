@@ -47,7 +47,7 @@ git diff-index --check --cached $against -- || EXIT_CODE=$?
 if which ansible-lint &>/dev/null; then
 	echo; echo Running ansible-lint
 	ansible-lint -v --force-color \
-		--exclude "$(git ls-files --others --exclude-standard)" . || EXIT_CODE=$?
+		--exclude "$(git ls-files --others --exclude-standard)" || EXIT_CODE=$?
 fi
 
 if which trufflehog &>/dev/null; then
