@@ -3,7 +3,7 @@
 name: ansible-lint
 on:
   push:
-  pull-request:
+  pull_request:
 
 jobs:
   build:
