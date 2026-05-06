@@ -3,6 +3,9 @@
 name: ansible-lint
 on:
   push:
+    branches:
+      - 'main'
+      - 'releases/**'
   pull_request:
 
 jobs:
