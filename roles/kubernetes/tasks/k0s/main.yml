@@ -8,8 +8,6 @@
   ansible.builtin.set_fact:
     _kubernetes_version: >-
       {{ _kubernetes_version_reg.content | trim }}
-    _kubernetes_address: >-
-      {{ ansible_default_ipv6.address | default(ansible_all_ipv6_addresses[0]) }}
 
 - name: K0s install
   ansible.builtin.get_url:
@@ -90,7 +88,6 @@
     mode: "0644"
 
 - name: K0s install controller
-  when: 0 > 1
   ansible.builtin.command:
     cmd: >
       k0s install controller --enable-worker --no-taints
@@ -120,4 +117,4 @@
 
 - name: K0s set kubeconfig
   ansible.builtin.set_fact:
-    kubernetes_kubeconfig: "{{ _kuberentes_kubeconfig_reg | from_yaml }}"
+    kubernetes_kubeconfig: "{{ _kuberentes_kubeconfig_reg.stdout | from_yaml }}"

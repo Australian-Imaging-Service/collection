@@ -5,8 +5,8 @@
   vars:
     params:
       files:
-        - "{{ ansible_distribution }}.yml"
-        - "{{ ansible_os_family }}.yml"
+        - "{{ ansible_facts.distribution }}.yml"
+        - "{{ ansible_facts.os_family }}.yml"
         - os_default.yml
       paths:
         - vars
@@ -33,7 +33,12 @@
         (ansible_facts['default_ipv6'] | length > 0) and
         (ansible_facts['default_ipv4'] | length > 0)
       }}
-    debian_architecture: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture] | default(ansible_architecture) }}"
+    debian_architecture: >-
+      {{
+        {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts.architecture] | default(
+          ansible_facts.architecture
+        )
+      }}
 
 - name: Set kubernetes deployment facts
   ansible.builtin.set_fact:
@@ -69,6 +74,7 @@
   when:
     - "ansible_facts.default_ipv4 | length > 0"
   ansible.builtin.lineinfile:
+    insertbefore: BOF
     line: >-
       {{ ansible_facts.default_ipv4.address }}
       {{ ansible_facts.fqdn }}
@@ -83,6 +89,7 @@
       ansible_facts.default_ipv6 | length > 0 or
       ansible_facts.all_ipv6_addresses | ansible.utils.ipaddr('private') | length > 0
   ansible.builtin.lineinfile:
+    insertbefore: BOF
     line: >-
       {{
         ansible_facts.default_ipv6.address | default(
@@ -96,7 +103,7 @@
 
 - name: Update package cache if required
   when:
-    - ansible_facts["os_family"] == "Debian"
+    - ansible_facts.os_family == "Debian"
   ansible.builtin.apt:
     cache_valid_time: 86400
     update_cache: true
