@@ -17,7 +17,7 @@
     mode: "0755"
     url: "https://github.com/k0sproject/k0s/releases/download\
           /{{ _kubernetes_version }}/\
-          k0s-{{ _kubernetes_version }}-{{ debian_architecture }}"
+          k0s-{{ _kubernetes_version }}-{{ kubernetes_debian_architecture }}"
 
 - name: K0s default binary link
   ansible.builtin.file:
@@ -42,18 +42,18 @@
 - name: K0s /etc/k0s/k0s.yaml exists?
   ansible.builtin.stat:
     path: /etc/k0s/k0s.yaml
-  register: _kuberentes_k0s_yaml_reg
+  register: _kubernetes_k0s_yaml_reg
 
 - name: K0s get config
   when:
-    - _kuberentes_k0s_yaml_reg.stat.exists
+    - _kubernetes_k0s_yaml_reg.stat.exists
   ansible.builtin.slurp:
     src: /etc/k0s/k0s.yaml
   register: _kubernetes_k0s_yaml_reg
 
 - name: K0s config create
   when:
-    - not _kuberentes_k0s_yaml_reg.stat.exists
+    - not _kubernetes_k0s_yaml_reg.stat.exists
   ansible.builtin.command:
     cmd: k0s config create
   register: _kubernetes_k0s_default_reg
@@ -62,7 +62,7 @@
 - name: K0s get config  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
     _kubernetes_config: >-
-      {%- if _kuberentes_k0s_yaml_reg.stat.exists -%}
+      {%- if _kubernetes_k0s_yaml_reg.stat.exists -%}
       {{ _kubernetes_k0s_yaml_reg.content | b64decode | from_yaml }}
       {%- else -%}
       {{ _kubernetes_k0s_default_reg.stdout | from_yaml }}
@@ -75,7 +75,7 @@
         _kubernetes_config |
         ansible.builtin.combine(
           (lookup('ansible.builtin.template', 'k0s/address.yaml.j2') | from_yaml),
-          (lookup('ansible.builtin.template', 'k0s/cidr.yaml.j2') | from_yaml) if not _kuberentes_k0s_yaml_reg.stat.exists else {},
+          (lookup('ansible.builtin.template', 'k0s/cidr.yaml.j2') | from_yaml) if not _kubernetes_k0s_yaml_reg.stat.exists else {},
           (lookup('ansible.builtin.template', 'k0s/cilium.yaml.j2') | from_yaml) if _kubernetes_cni_type == 'cilium' else {},
           recursive=true
         )
@@ -113,8 +113,8 @@
   ansible.builtin.command:
     cmd: k0s kubectl config view --raw
   changed_when: false
-  register: _kuberentes_kubeconfig_reg
+  register: _kubernetes_kubeconfig_reg
 
 - name: K0s set kubeconfig
   ansible.builtin.set_fact:
-    kubernetes_kubeconfig: "{{ _kuberentes_kubeconfig_reg.stdout | from_yaml }}"
+    kubernetes_kubeconfig: "{{ _kubernetes_kubeconfig_reg.stdout | from_yaml }}"

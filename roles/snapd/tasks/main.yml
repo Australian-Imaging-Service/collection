@@ -5,23 +5,23 @@
   vars:
     params:
       files:
-        - "{{ ansible_distribution }}.yml"
-        - "{{ ansible_os_family }}.yml"
+        - "{{ ansible_facts.distribution }}.yml"
+        - "{{ ansible_facts.os_family }}.yml"
         - os_default.yml
       paths:
         - vars
 
 - name: Update package cache if required
   when:
-    - ansible_facts['os_family'] == "Debian"
+    - ansible_facts.os_family == "Debian"
   ansible.builtin.apt:
     cache_valid_time: 86400
     update_cache: true
 
 - name: Add EPEL repository if required
   when: >
-    ansible_facts["os_family"] == "RedHat" and
-    ansible_facts["distribution"] != "Fedora"
+    ansible_facts.os_family == "RedHat" and
+    ansible_facts.distribution != "Fedora"
   ansible.builtin.package:
     name: epel-release
     state: present
@@ -33,7 +33,7 @@
 
 - name: Enable classic snap support if required
   when:
-    - ansible_facts["os_family"] == "RedHat"
+    - ansible_facts.os_family == "RedHat"
   ansible.builtin.file:
     path: /snap
     src: /var/lib/snapd/snap
