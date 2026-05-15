@@ -1,0 +1,14 @@
+- name: Microk8s install snap
+  community.general.snap:
+    name: microk8s
+    classic: true
+
+- name: Microk8s get kubeconfig
+  ansible.builtin.command:
+    cmd: microk8s kubectl config view --raw
+  changed_when: false
+  register: _kuberentes_kubeconfig_reg
+
+- name: Microk8s set kubeconfig
+  ansible.builtin.set_fact:
+    kubernetes_kubeconfig: "{{ _kuberentes_kubeconfig_reg | from_yaml }}"

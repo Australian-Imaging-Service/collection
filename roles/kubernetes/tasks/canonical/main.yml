@@ -1,83 +1,75 @@
 ---
 # tasks/canonical/main.yml
-- name: Set kubernetes address  # noqa: jinja[spacing]
+- name: Canonical set kubernetes server address  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
-    kubernetes_address_default: >-  # noqa: jinja[spacing]
-      {%- if kubernetes_host_dualstack and kubernetes_ipv6only -%}
-      {{ '::1' if kubernetes_environment == 'development' else ansible_facts['default_ipv6']['address'] }}
+    _kubernetes_server_address: >-  # noqa: jinja[spacing]
+      {%- if _kubernetes_address is ansible.utils.ipv4 -%}
+      https://{{ _kubernetes_address }}:6443
       {%- else -%}
-      {{ '127.0.0.1' if kubernetes_environment == 'development' else ansible_facts['default_ipv4']['address'] }}
+      https://[{{ _kubernetes_address }}]:6443
       {%- endif %}
 
-- name: Set kubernetes server address  # noqa: jinja[spacing]
-  ansible.builtin.set_fact:
-    kubernetes_server_address: >-  # noqa: jinja[spacing]
-      {%- if kubernetes_address_default is ansible.utils.ipv4 -%}
-      https://{{ kubernetes_address_default }}:6443
-      {%- else -%}
-      https://[{{ kubernetes_address_default }}]:6443
-      {%- endif %}
-
-- name: Install canonical k8s snap
+- name: Canonical install snap
   community.general.snap:
     name: k8s
     classic: true
 
-- name: Get k8s status
+- name: Canonical get status
   ansible.builtin.command:
     cmd: k8s status --output-format=json
   changed_when: false
   failed_when: false
   register: kubernetes_status_reg
 
-- name: Debug kubernetes status
+- name: Canonical debug kubernetes status
   ansible.builtin.debug:
     var: kubernetes_status_reg
     verbosity: 1
 
-- name: Bootstrap canonical k8s
+- name: Canonical bootstrap
   when:
     - kubernetes_status_reg.rc != 0
   block:
-    - name: Canonical k8s bootstrap file
+    - name: Canonical bootstrap file
       ansible.builtin.template:
         dest: /etc/ansible/etc/canonical.bootstrap.yaml
+        force: false
         lstrip_blocks: true
         mode: "644"
         src: canonical/bootstrap.yaml.j2
 
-    - name: Bootstrap canonical k8s node
+    - name: Canonical bootstrap
       ansible.builtin.command:
         cmd: >
-          k8s bootstrap --timeout=10m
+          k8s bootstrap --timeout=5m
           --file=/etc/ansible/etc/canonical.bootstrap.yaml
-          --address={{ kubernetes_address_default }}
+          --address={{ _kubernetes_address }}
       changed_when: true
       register: kubernetes_boostrap_reg
 
-    - name: Debug bootstrap
+    - name: Canonical debug bootstrap
       ansible.builtin.debug:
         var: kubernetes_boostrap_reg
         verbosity: 1
 
-    - name: Wait and get status
+    - name: Canonical wait and get status
       ansible.builtin.command:
         cmd: k8s status --output-format=json --wait-ready
       changed_when: false
       register: kubernetes_bootstrap_status_reg
 
-    - name: Debug kubernetes bootstrap status
+    - name: Canonical DEBUG bootstrap status
       ansible.builtin.debug:
         var: kubernetes_bootstrap_status_reg
         verbosity: 1
 
-- name: Get kubeconfig
+- name: Canonical get kubeconfig
   ansible.builtin.command:
-    cmd: k8s config --server={{ kubernetes_server_address }}
+    cmd: k8s config --server={{ _kubernetes_server_address }}
   changed_when: false
   register: kubernetes_kubeconfig_reg
 
-- name: Set kubernetes status and kubeconfig  # noqa: jinja[spacing]
+- name: Canonical set kubeconfig  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
     kubernetes_status: >-  # noqa: jinja[spacing]
       {%- if kubernetes_bootstrap_status_reg.skipped is defined -%}
@@ -87,7 +79,7 @@
       {%- endif %}
     kubernetes_kubeconfig: "{{ kubernetes_kubeconfig_reg.stdout | from_yaml }}"
 
-- name: Run cluster instructions
+- name: Canonical run cluster instructions
   run_once: true
   block:
     - name: Feature config

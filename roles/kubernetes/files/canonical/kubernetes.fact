@@ -10,11 +10,11 @@ def main():
                 capture_output=True, text=True)
 
         if result.returncode != 0:
-            print(f'{{"error":"{result.stderr.strip()}"}}')
+            print(json.dumps({"error": result.stderr.strip()}))
         else:
             print(re.sub(r'\b(True|False),', lambda m: m.group(0).lower(), result.stdout))
     except Exception as e:
-        print(f'{{"error":"{e}"}}')
+        print(json.dumps({"error": e}))
 
 if __name__ == "__main__":
     main()

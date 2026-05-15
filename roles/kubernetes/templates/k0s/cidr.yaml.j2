@@ -1,0 +1,6 @@
+spec:
+  network:
+    kubeProxy:
+      metricsBindAddress: {{ (_kubernetes_pod_cidr | ansible.utils.ipv6) | ternary('[::]:10249', '0.0.0.0:10249') | quote }}
+    podCIDR: {{ _kubernetes_pod_cidr }}
+    serviceCIDR: {{ _kubernetes_service_cidr }}

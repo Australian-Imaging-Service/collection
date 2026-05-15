@@ -1,17 +1,20 @@
 ---
 # defaults file for kubernetes
+# override default kubernetes API address for the host
+kubernetes_address: ""
 kubernetes_type: canonical
 # override default Container Network Interface
 kubernetes_cni_type: ""
 # override generated Classless Inter-Domain Routing IP ranges
 kubernetes_pod_cidr: ""
 kubernetes_service_cidr: ""
+kubernetes_ipv6: true
 # extra x.509 certificate Subject Alternative Name (SAN)
 kubernetes_sans: []
 # - custom.kubernetes
 # - custom.ais.sydney.edu.au
 
-# override host bound DNS forwarder
+# override host resolver
 kubernetes_dns_forwarders: []
 
 # integrate cluster into IPv4 legacy networks

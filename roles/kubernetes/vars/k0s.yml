@@ -1,0 +1,7 @@
+kubernetes_cni_type_default: kuberouter
+kubernetes_coredns_cm_name: coredns
+kubernetes_containerd_sock_default: /run/k0s/containerd.sock
+# Containerd control binary path
+kubernetes_ctr_bin: k0s ctr
+kubernetes_helm: ""
+kubernetes_kubectl: k0s kubectl

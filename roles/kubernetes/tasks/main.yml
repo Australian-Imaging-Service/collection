@@ -17,33 +17,82 @@
 - name: Set facts  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
     kubernetes_ctr: >-  # noqa: jinja[spacing]
-      {%- if kubernetes_type == "canonical" -%}
       {{ kubernetes_ctr_bin }}
-      --address {{ kubernetes_containerd_sock_default }}
+      --address {{ kubernetes_containerd_sock | default(kubernetes_containerd_sock_default, true) }}
       --namespace k8s.io
-      {%- elif kubernetes_type == "microk8s" -%}
-      {{ kubernetes_ctr_bin }}
-      {%- endif %}
-    kubernetes_cidr_default: "\
+    _kubernetes_v4_cidr_default: "{{ '10.0.0.0/8' | ansible.utils.ipsubnet(24) | random }}"
+    _kubernetes_v6_cidr_default: "\
       fd{{ '%02x' % ((127 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       :{{ '%x' % ((32767 | random) | int) }}\
       ::/64"
+    _kubernetes_cni_type: "{{ kubernetes_cni_type | default(kubernetes_cni_type_default, true) }}"
     kubernetes_host_dualstack: >-
       {{
         (ansible_facts['default_ipv6'] | length > 0) and
         (ansible_facts['default_ipv4'] | length > 0)
       }}
-    kubernetes_ipv6only: "{{ not kubernetes_pod_cidr is ansible.utils.ipv4 }}"
+    debian_architecture: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture] | default(ansible_architecture) }}"
 
-- name: Set kubernetes cidr defaults
+- name: Set kubernetes deployment facts
   ansible.builtin.set_fact:
-    kubernetes_pod_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 0) }}"
-    kubernetes_service_cidr_default: "{{ kubernetes_cidr_default | ansible.utils.ipsubnet(108, 1) }}"
+    _kubernetes_address: >-
+      {{
+        kubernetes_address | default(
+          ansible_facts.default_ipv4.address if not kubernetes_ipv6 else
+          ansible_facts.default_ipv6.address if ansible_facts.default_ipv6 | length > 0 else
+          ansible_facts.all_ipv6_addresses | ansible.utils.ipaddr('private') | first | default(
+          ansible_facts.all_ipv6_addresses | ansible.utils.ipaddr('public') | first
+          ),
+          true)
+      }}
+    _kubernetes_pod_cidr: >-
+      {{
+        kubernetes_pod_cidr | default(
+          (_kubernetes_v6_cidr_default | ansible.utils.ipsubnet(108, 0)) if kubernetes_ipv6 else
+          (_kubernetes_v4_cidr_default | ansible.utils.ipsubnet(24, 0)),
+          true)
+      }}
+    _kubernetes_service_cidr: >-
+      {{
+        kubernetes_service_cidr | default(
+          (_kubernetes_v6_cidr_default | ansible.utils.ipsubnet(108, 1)) if kubernetes_ipv6 else
+          (_kubernetes_v4_cidr_default | ansible.utils.ipsubnet(24, 1)),
+          true)
+      }}
+# - ansible.builtin.debug: {var: _kubernetes_address}
+# - ansible.builtin.debug: {var: _kubernetes_pod_cidr}
+# - ansible.builtin.debug: {var: _kubernetes_service_cidr}
 
-- name: Configure ansible
-  ansible.builtin.include_tasks: config_ansible.yml
+- name: Hosts file IPv4
+  when:
+    - "ansible_facts.default_ipv4 | length > 0"
+  ansible.builtin.lineinfile:
+    line: >-
+      {{ ansible_facts.default_ipv4.address }}
+      {{ ansible_facts.fqdn }}
+      {{ ansible_facts.hostname }}
+    path: /etc/hosts
+    regexp: '^[0-9.]+\s+{{ ansible_facts.hostname }}'
+    state: present
+
+- name: Host file IPv6
+  when:
+    - >-
+      ansible_facts.default_ipv6 | length > 0 or
+      ansible_facts.all_ipv6_addresses | ansible.utils.ipaddr('private') | length > 0
+  ansible.builtin.lineinfile:
+    line: >-
+      {{
+        ansible_facts.default_ipv6.address | default(
+        ansible_facts.all_ipv6_addresses | ansible.utils.ipaddr('private') | first)
+      }}
+      {{ ansible_facts.fqdn }}
+      {{ ansible_facts.hostname }}
+    path: /etc/hosts
+    regexp: '^[0-9a-f:]+\s+{{ ansible_facts.hostname }}'
+    state: present
 
 - name: Update package cache if required
   when:
@@ -51,6 +100,9 @@
   ansible.builtin.apt:
     cache_valid_time: 86400
     update_cache: true
+
+- name: Ansible
+  ansible.builtin.include_tasks: config_ansible.yml
 
 - name: Install snapd if required
   when:
@@ -68,22 +120,8 @@
     src: images/
   register: kubernetes_copy_images_reg
 
-- name: Kubernetes image side load  # noqa: no-handler
-  when:
-    - kubernetes_copy_images_reg.changed
-  block:
-    - name: Find all image files for side load
-      ansible.builtin.find:
-        paths: /etc/ansible/kubernetes/images
-        patterns: "*.tar"
-      register: kubernetes_image_files_reg
-
-    - name: Side load images
-      ansible.builtin.command:
-        cmd: "{{ kubernetes_ctr }} images import {{ item.path }}"
-      changed_when: "{{ 'done' in kubernetes_ctr_images_import_reg.stdout }}"
-      register: kubernetes_ctr_images_import_reg
-      loop: "{{ kubernetes_image_files_reg.files }}"
+- name: Kubernetes image side load
+  ansible.builtin.include_tasks: containerd_side_load_images.yml
 
 - name: Configure kubernetes cluster
   run_once: true

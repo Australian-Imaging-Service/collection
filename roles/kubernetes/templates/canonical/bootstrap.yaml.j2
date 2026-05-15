@@ -2,7 +2,7 @@
 # Ref. https://documentation.ubuntu.com/canonical-kubernetes/main/snap/reference/config-files/bootstrap-config/
 cluster-config:
   network:
-    enabled: {{ true if (kubernetes_cni_type | default('cilium', true) == 'cilium' else false }}
+    enabled: {{ 'true' if (kubernetes_cni_type | default('cilium', true) == 'cilium') else 'false' }}
   dns:
     enabled: true
     cluster-domain: cluster.local
@@ -11,7 +11,7 @@ cluster-config:
   load-balancer:
     enabled: false
     cidrs:
-      {{ kubernetes_lb_cidrs | to_nice_yaml(indent=2) | indent(6) }}
+      {{ kubernetes_lb_cidrs | to_yaml | indent(6) }}
     l2-mode: {{ (not kubernetes_lb_bgp_enabled) | to_json }}
   local-storage:
     enabled: {{ kubernetes_local_storage_enabled | to_json }}
@@ -23,8 +23,8 @@ cluster-config:
     enabled: {{ kubernetes_metrics_server_enabled | to_json }}
 control-plane-taints:
   {{ kubernetes_control_plane_taints | to_nice_yaml(indent=2) | indent(2) }}
-pod-cidr: {{ kubernetes_pod_cidr | default(kubernetes_pod_cidr_default,true) }}
-service-cidr: {{ kubernetes_service_cidr | default(kubernetes_service_cidr_default, true) }}
+pod-cidr: {{ _kubernetes_pod_cidr }}
+service-cidr: {{ _kubernetes_service_cidr }}
 disable-rbac: false
 datastore-type: etcd
 extra-sans:

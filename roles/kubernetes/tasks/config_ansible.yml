@@ -1,3 +1,10 @@
+- name: Ansible packages
+  ansible.builtin.package:
+    name:
+      - python3
+      - python3-venv
+    state: present
+
 - name: Create ansible directory
   ansible.builtin.file:
     mode: "755"
@@ -36,4 +43,4 @@
   ansible.builtin.copy:
     dest: /etc/ansible/facts.d/kubernetes.fact
     mode: "0755"
-    src: kubernetes.fact
+    src: "{{ kubernetes_type }}/kubernetes.fact"

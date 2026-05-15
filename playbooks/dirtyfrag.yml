@@ -1,0 +1,31 @@
+# https://access.redhat.com/security/vulnerabilities/RHSB-2026-003
+- name: Dirtyfrag
+  hosts: "{{ target | default('all') }}"
+  become: true
+
+  tasks:
+    - name: Get lsmod
+      ansible.builtin.command:
+        cmd: lsmod
+      changed_when: false
+      register: lsmod_reg
+
+    - name: ESP module?
+      when:
+        - >-
+          'esp4' in lsmod_reg.stdout_lines or
+          'esp6' in lsmod_reg.stdout_lines
+      ansible.builtin.fail:
+        msg: >-
+          IPSec ESP module is currently loaded
+
+    - name: Create module file
+      when:
+        - "'esp4' not in lsmod_reg.stdout_lines"
+        - "'esp6' not in lsmod_reg.stdout_lines"
+      ansible.builtin.copy:
+        content: |
+          install esp4 /bin/false
+          install esp6 /bin/false
+        dest: /etc/modprobe.d/dirtyfrag.conf
+        mode: '0644'

@@ -28,3 +28,5 @@ argument_specs:
         default: canonical
         choices:
           - canonical
+          - k0s
+          - microk8s
