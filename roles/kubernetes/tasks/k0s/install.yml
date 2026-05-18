@@ -1,0 +1,40 @@
+- name: K0s get stable version
+  ansible.builtin.uri:
+    return_content: true
+    url: https://docs.k0sproject.io/stable.txt
+  register: _kubernetes_version_reg
+
+- name: K0s set facts
+  ansible.builtin.set_fact:
+    _kubernetes_version: >-
+      {{ _kubernetes_version_reg.content | trim }}
+
+- name: K0s install
+  ansible.builtin.get_url:
+    checksum: "sha256:https://github.com/k0sproject/k0s/releases/download\
+               /{{ _kubernetes_version }}/sha256sums.txt"
+    dest: /usr/local/bin/k0s-{{ _kubernetes_version }}
+    mode: "0755"
+    url: "https://github.com/k0sproject/k0s/releases/download\
+          /{{ _kubernetes_version }}/\
+          k0s-{{ _kubernetes_version }}-{{ kubernetes_debian_architecture }}"
+
+- name: K0s default binary link
+  ansible.builtin.file:
+    path: /usr/local/bin/k0s
+    src: /usr/local/bin/k0s-{{ _kubernetes_version }}
+    state: link
+
+- name: K0s completion
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      k0s completion bash |tee /etc/bash_completion.d/k0s >/dev/null
+    creates: /etc/bash_completion.d/k0s
+    executable: /bin/bash
+
+- name: K0s create etc directory
+  ansible.builtin.file:
+    mode: "0755"
+    path: /etc/k0s
+    state: directory

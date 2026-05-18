@@ -1,0 +1,35 @@
+# kubernetes/tasks/canonical/bootstrap.yml
+- name: Canonical bootstrap file
+  ansible.builtin.template:
+    dest: /etc/ansible/etc/canonical.bootstrap.yaml
+    force: false
+    lstrip_blocks: true
+    mode: "644"
+    src: canonical/bootstrap.yaml.j2
+
+- name: Canonical bootstrap
+  ansible.builtin.command:
+    cmd: >
+      k8s bootstrap --timeout=5m
+      --file=/etc/ansible/etc/canonical.bootstrap.yaml
+      --address={{ _kubernetes_address }}
+    creates: /run/containerd/containerd.sock
+  register: kubernetes_boostrap_reg
+
+- name: Canonical debug bootstrap
+  ansible.builtin.debug:
+    var: kubernetes_boostrap_reg
+    verbosity: 1
+
+- name: Canonical post bootstrap  # noqa: no-handler
+  when:
+    - kubernetes_boostrap_reg.changed
+  block:
+    - name: Canonical wait for controller
+      ansible.builtin.command:
+        cmd: k8s status --output-format=json --timeout=2m0s --wait-ready
+      changed_when: false
+
+    - name: Canonical refresh local facts
+      ansible.builtin.setup:
+        filter: ansible_local

@@ -1,0 +1,70 @@
+- name: K0s /etc/k0s/k0s.yaml exists?
+  ansible.builtin.stat:
+    path: /etc/k0s/k0s.yaml
+  register: _kubernetes_k0s_yaml_stat
+
+- name: K0s get config
+  when:
+    - _kubernetes_k0s_yaml_stat.stat.exists
+  ansible.builtin.slurp:
+    src: /etc/k0s/k0s.yaml
+  register: _kubernetes_k0s_yaml_reg
+
+- name: K0s config create
+  when:
+    - not _kubernetes_k0s_yaml_stat.stat.exists
+  ansible.builtin.command:
+    cmd: k0s config create
+  register: _kubernetes_k0s_default_reg
+  changed_when: false
+
+- name: K0s get config  # noqa: jinja[spacing]
+  ansible.builtin.set_fact:
+    _kubernetes_config: >-
+      {%- if _kubernetes_k0s_yaml_stat.stat.exists -%}
+      {{ _kubernetes_k0s_yaml_reg.content | b64decode | from_yaml }}
+      {%- else -%}
+      {{ _kubernetes_k0s_default_reg.stdout | from_yaml }}
+      {%- endif -%}
+
+- name: K0s combine config
+  ansible.builtin.set_fact:
+    _kubernetes_config_combine: >-
+      {{
+        _kubernetes_config |
+        ansible.builtin.combine(
+          (lookup('ansible.builtin.template', 'k0s/address.yaml.j2') | from_yaml),
+          (lookup('ansible.builtin.template', 'k0s/cidr.yaml.j2') | from_yaml) if not _kubernetes_k0s_yaml_stat.stat.exists else {},
+          (lookup('ansible.builtin.template', 'k0s/cilium.yaml.j2') | from_yaml) if _kubernetes_cni_type == 'cilium' else {},
+          recursive=true
+        )
+      }}
+
+- name: K0s config
+  ansible.builtin.copy:
+    content: "{{ _kubernetes_config_combine | to_nice_yaml(indent=2) }}"
+    dest: /etc/k0s/k0s.yaml
+    mode: "0644"
+
+- name: K0s install controller
+  ansible.builtin.command:
+    cmd: >
+      k0s install controller
+      {{ '--enable-worker --no-taints' if (groups['kubernetes_type_k0s'] | length < 6) else '' }}
+      {{ "--feature-gates='IPv6SingleStack=true'" if (_kubernetes_service_cidr | ansible.utils.ipv6) else '' }}
+      --config=/etc/k0s/k0s.yaml
+    creates: /var/lib/k0s
+  register: _kubernetes_k0s_install_reg
+
+- name: K0s start  # noqa: no-handler
+  when:
+    - _kubernetes_k0s_install_reg.changed
+  ansible.builtin.command:
+    cmd: k0s start
+  changed_when: true
+
+- name: K0s wait for status
+  ansible.builtin.wait_for:
+    path: /run/k0s/status.sock
+    state: present
+    timeout: 60

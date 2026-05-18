@@ -1,0 +1,25 @@
+- name: Microk8s snap version
+  delegate_to: "{{ _kubernetes_microk8s_primary }}"
+  run_once: true
+  when: "inventory_hostname not in groups['kubernetes_cluster_primary']"
+  ansible.builtin.command:
+    cmd: snap list
+  changed_when: false
+  register: _kubernetes_microk8s_snap_list
+
+- name: Microk8s install snap
+  community.general.snap:
+    channel: >-
+      {{
+        'stable' if _kubernetes_microk8s_snap_list.skipped else
+        (_kubernetes_microk8s_snap_list.stdout_lines | select('match', '^microk8s') | list | first).split()[2]
+      }}
+    name: microk8s
+    classic: true
+  register: _kubernetes_microk8s_install
+
+- name: Microk8s wait for service  # noqa: no-handler
+  when: _kubernetes_microk8s_install.changed
+  ansible.builtin.command:
+    cmd: microk8s status --format=yaml --wait-ready --timeout=120
+  changed_when: false

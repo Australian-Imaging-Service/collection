@@ -1,0 +1,28 @@
+- name: Kuberentes version?
+
+- name: K0s token create
+  delegate_to: primary
+  ansible.builtin.command:
+    cmd: >-
+      k0s token create --role={{ (kubernetes_controller | default(false)) | ternary('controller', 'worker') }}
+      --expiry=10m
+
+- name: K0s install
+  ansible.builtin.command:
+    cmd: >-
+      k0s install {{ (kubernetes_controller | default(false)) | ternary('controller', 'worker') }}
+      --token-file /path/to/token/file
+      {% if (kubernetes_controller | default(false)) %}
+      {{ '--enable-worker --no-taints' if groups['kubernetes_type_' + {{ kubernetes_type }}] | length < 6 else "" }}
+      {{ "--feature-gates='IPv6SingleStack=true'" if _kubernetes_service_cidr | ansible.utils.ipv6 else "" }}
+      {% endif %}
+
+- name: K0s start
+  ansible.builtin.command:
+    cmd: k0s start
+
+- name: K0s wait for status
+  ansible.builtin.wait_for:
+    path: /run/k0s/status.sock
+    state: present
+    timeout: 60

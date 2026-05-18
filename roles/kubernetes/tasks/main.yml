@@ -117,32 +117,94 @@
   ansible.builtin.include_role:
     name: ais.core.snapd
 
-- name: Kubernetes type tasks
-  ansible.builtin.include_tasks: "{{ kubernetes_type }}/main.yml"
+- name: Group kubernetes types
+  ansible.builtin.group_by:
+    key: kubernetes_type_{{ kubernetes_type }}
+  changed_when: false
 
-- name: Copy oci images to each cluster host
-  ansible.builtin.copy:
-    dest: /etc/ansible/kubernetes/images/
-    mode: "644"
-    src: images/
-  register: kubernetes_copy_images_reg
+- name: Group kubernetes roles
+  ansible.builtin.group_by:
+    key: >-
+      kubernetes_role_{{
+        'undefined' if ansible_local.kubernetes is undefined else (
+        'controller' if ansible_local['kubernetes']['ansible_facts']['is_control_plane'] else 'worker'
+        )
+      }}
+  changed_when: false
+
+- name: Group kubernetes elected primary node
+  when: >-
+    item in groups['kubernetes_type_' + hostvars[item]['kubernetes_type']] |
+    ansible.builtin.intersect(groups['kubernetes_role_controller']) |
+    sort | first |
+    default(groups['kubernetes_type_' + hostvars[item]['kubernetes_type']][0])
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: "kubernetes_cluster_primary"
+  loop: "{{ ansible_play_hosts }}"
+  changed_when: false
+
+- name: Set kubernetes type primary
+  ansible.builtin.set_fact:
+    _kubernetes_canonical_primary: >-
+      {{
+        groups['kubernetes_type_canonical'] | default([]) |
+        ansible.builtin.intersect(groups['kubernetes_cluster_primary']) | first | default('')
+      }}
+    _kubernetes_k0s_primary: >-
+      {{
+        groups['kubernetes_type_k0s'] | default([]) |
+        ansible.builtin.intersect(groups['kubernetes_cluster_primary']) | first | default('')
+      }}
+    _kubernetes_microk8s_primary: >-
+      {{
+        groups['kubernetes_type_microk8s'] | default([]) |
+        ansible.builtin.intersect(groups['kubernetes_cluster_primary']) | first | default('')
+      }}
+
+- name: Cluster nodes in hosts file
+  ansible.builtin.blockinfile:
+    block: |
+      {% for host in (groups['kubernetes_type_' + kubernetes_type] | sort) %}
+      {{ hostvars[host]._kubernetes_address }} {{ hostvars[host].ansible_facts.fqdn }} {{ hostvars[host].ansible_facts.hostname }}
+      {% endfor %}
+    path: /etc/hosts
+    state: present
+
+- name: Kuberentes install
+  ansible.builtin.include_tasks: "{{ kubernetes_type }}/install.yml"
+
+- name: Kubernetes cluster bootstrap
+  when: >-
+    inventory_hostname in groups['kubernetes_cluster_primary']
+  ansible.builtin.include_tasks: "{{ kubernetes_type }}/bootstrap.yml"
+
+- name: Kubernetes join
+  when: >-
+    inventory_hostname not in groups['kubernetes_cluster_primary']
+  ansible.builtin.include_tasks: "{{ kubernetes_type }}/join.yml"
 
 - name: Kubernetes image side load
   ansible.builtin.include_tasks: containerd_side_load_images.yml
 
 - name: Configure kubernetes cluster
-  run_once: true
+  when: >-
+    inventory_hostname in groups['kubernetes_cluster_primary']
   block:
+    - name: Kubernetes cluster setup
+      ansible.builtin.include_tasks: "{{ kubernetes_type }}/main.yml"
+
     - name: Configure coredns dns64
       when:
         - kubernetes_dns64_enabled
+        - _kubernetes_address | ansible.utils.ipv6
         - ansible_facts['default_ipv6'] | length > 0
       ansible.builtin.include_tasks: coredns/main.yml
 
     - name: Configure nat64
       when:
         - kubernetes_nat64_enabled
-        - kubernetes_host_dualstack
+        - _kubernetes_address | ansible.utils.ipv6
       kubernetes.core.k8s:
         kubeconfig: "{{ kubernetes_kubeconfig }}"
         state: present

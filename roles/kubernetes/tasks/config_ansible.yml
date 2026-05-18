@@ -44,3 +44,10 @@
     dest: /etc/ansible/facts.d/kubernetes.fact
     mode: "0755"
     src: "{{ kubernetes_type }}/kubernetes.fact"
+  register: _kubernetes_local_fact_reg
+
+- name: Reload ansible facts to pick up changes  # noqa: no-handler
+  when: >-
+    _kubernetes_local_fact_reg.changed
+  ansible.builtin.setup:
+    filter: ansible_local

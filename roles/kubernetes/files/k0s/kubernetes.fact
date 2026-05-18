@@ -12,7 +12,11 @@ def main():
         if result.returncode != 0:
             print(json.dumps({"error": result.stderr.strip()}))
         else:
-            print(result.stdout)
+            _status = json.loads(result.stdout)
+            _status['ansible_facts'] = {
+                    'is_control_plane': _status['Role'] == 'controller',
+                    }
+            print(json.dumps(_status))
     except Exception as e:
         print(json.dumps({"error": e}))
 

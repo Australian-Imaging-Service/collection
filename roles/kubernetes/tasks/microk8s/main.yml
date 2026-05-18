@@ -1,8 +1,3 @@
-- name: Microk8s install snap
-  community.general.snap:
-    name: microk8s
-    classic: true
-
 - name: Microk8s get kubeconfig
   ansible.builtin.command:
     cmd: microk8s kubectl config view --raw

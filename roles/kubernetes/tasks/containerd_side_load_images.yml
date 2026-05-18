@@ -1,3 +1,10 @@
+- name: Copy oci images to each cluster host
+  ansible.builtin.copy:
+    dest: /etc/ansible/kubernetes/images/
+    mode: "644"
+    src: images/
+  register: kubernetes_copy_images_reg
+
 - name: Get containerd images list
   ansible.builtin.command:
     cmd: "{{ kubernetes_ctr }} images list -q"
@@ -12,10 +19,9 @@
   register: _kubernetes_local_images_reg
 
 - name: Containerd import image
-  when:
-    - >
-      (item.path | basename | splitext | first | regex_replace('-(?!.*-)', ":"))
-      in _kubernetes_containerd_images_reg.stdout_lines
+  when: >-
+    (item.path | basename | splitext | first | regex_replace('-(?!.*-)', ":"))
+    in _kubernetes_containerd_images_reg.stdout_lines
   ansible.builtin.command:
     cmd: "{{ kubernetes_ctr_bin }} image import {{ item.path }}"
   changed_when: _kubernetes_ctr_image_import_reg == 0

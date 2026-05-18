@@ -1,0 +1,19 @@
+- name: Canonical get snap version
+  delegate_to: "{{ _kubernetes_canonical_primary }}"
+  run_once: true
+  when: >-
+    inventory_hostname not in groups['kubernetes_cluster_primary']
+  ansible.builtin.command:
+    cmd: snap list
+  changed_when: false
+  register: _kubernetes_canonical_snap_list
+
+- name: Canonical install snap
+  community.general.snap:
+    channel: >-
+      {{
+        'stable' if _kubernetes_microk8s_snap_list.skipped else
+        (_kubernetes_canonical_snap_list.stdout_lines | select('match', '^k8s') | list | first).split()[2]
+      }}
+    name: k8s
+    classic: true

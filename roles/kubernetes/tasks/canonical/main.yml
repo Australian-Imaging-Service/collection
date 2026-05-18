@@ -1,95 +1,27 @@
 ---
 # tasks/canonical/main.yml
-- name: Canonical set kubernetes server address  # noqa: jinja[spacing]
-  ansible.builtin.set_fact:
-    _kubernetes_server_address: >-  # noqa: jinja[spacing]
-      {%- if _kubernetes_address is ansible.utils.ipv4 -%}
-      https://{{ _kubernetes_address }}:6443
-      {%- else -%}
-      https://[{{ _kubernetes_address }}]:6443
-      {%- endif %}
-
-- name: Canonical install snap
-  community.general.snap:
-    name: k8s
-    classic: true
-
-- name: Canonical get status
-  ansible.builtin.command:
-    cmd: k8s status --output-format=json
-  changed_when: false
-  failed_when: false
-  register: kubernetes_status_reg
-
-- name: Canonical debug kubernetes status
-  ansible.builtin.debug:
-    var: kubernetes_status_reg
-    verbosity: 1
-
-- name: Canonical bootstrap
-  when:
-    - kubernetes_status_reg.rc != 0
-  block:
-    - name: Canonical bootstrap file
-      ansible.builtin.template:
-        dest: /etc/ansible/etc/canonical.bootstrap.yaml
-        force: false
-        lstrip_blocks: true
-        mode: "644"
-        src: canonical/bootstrap.yaml.j2
-
-    - name: Canonical bootstrap
-      ansible.builtin.command:
-        cmd: >
-          k8s bootstrap --timeout=5m
-          --file=/etc/ansible/etc/canonical.bootstrap.yaml
-          --address={{ _kubernetes_address }}
-      changed_when: true
-      register: kubernetes_boostrap_reg
-
-    - name: Canonical debug bootstrap
-      ansible.builtin.debug:
-        var: kubernetes_boostrap_reg
-        verbosity: 1
-
-    - name: Canonical wait and get status
-      ansible.builtin.command:
-        cmd: k8s status --output-format=json --wait-ready
-      changed_when: false
-      register: kubernetes_bootstrap_status_reg
-
-    - name: Canonical DEBUG bootstrap status
-      ansible.builtin.debug:
-        var: kubernetes_bootstrap_status_reg
-        verbosity: 1
-
 - name: Canonical get kubeconfig
   ansible.builtin.command:
-    cmd: k8s config --server={{ _kubernetes_server_address }}
+    cmd: >-
+      k8s config
+      --server={{
+        'https://[' + _kubernetes_address + ']:6443' if _kubernetes_address is ansible.utils.ipv6 else
+        'https://' + _kubernetes_address + ':6443' }}
   changed_when: false
   register: kubernetes_kubeconfig_reg
 
 - name: Canonical set kubeconfig  # noqa: jinja[spacing]
   ansible.builtin.set_fact:
-    kubernetes_status: >-  # noqa: jinja[spacing]
-      {%- if kubernetes_bootstrap_status_reg.skipped is defined -%}
-      {{ kubernetes_status_reg.stdout | from_json }}
-      {%- else -%}
-      {{ kubernetes_bootstrap_status_reg.stdout | from_json }}
-      {%- endif %}
     kubernetes_kubeconfig: "{{ kubernetes_kubeconfig_reg.stdout | from_yaml }}"
 
-- name: Canonical run cluster instructions
-  run_once: true
-  block:
-    - name: Feature config
-      when:
-        - >-
-          lookup('ansible.builtin.vars', 'kubernetes_' + (item.key | replace('-', '_')) + '_enabled', default=item.value.enabled)
-          != item.value.enabled
-      ansible.builtin.command:
-        cmd: >
-          k8s {{ 'disable' if item.value.enabled else 'enable' }} {{ item.key }}
-      loop: "{{ kubernetes_status | dict2items | selectattr('value.enabled', 'defined') | list }}"
-      changed_when: kubernetes_feature_reg.rc == 0
-      register: kubernetes_feature_reg
+- name: Canonical features
+  when: >-
+    lookup('ansible.builtin.vars', 'kubernetes_' + (item.key | replace('-', '_')) + '_enabled', default=item.value.enabled)
+    != item.value.enabled
+  ansible.builtin.command:
+    cmd: >
+      k8s {{ 'disable' if item.value.enabled else 'enable' }} {{ item.key }}
+  loop: >-
+    {{ ansible_local.kubernetes | dict2items | selectattr('value.enabled', 'defined') | list }}
+  changed_when: kubernetes_feature_reg.rc == 0
+  register: kubernetes_feature_reg
